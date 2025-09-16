@@ -23,8 +23,8 @@ func Setup() (*App, error) {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/host", host.New(store))
-	mux.Handle("/join", join.New(store))
+	mux.Handle("/ws/host", host.New(store))
+	mux.Handle("/ws/join", join.New(store))
 
 	return &App{
 		server: &http.Server{

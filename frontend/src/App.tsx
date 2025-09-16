@@ -1,4 +1,4 @@
-import { Link } from "./components/Link";
+import { Link } from "./components";
 
 const App = () => (
 	<div class="flex flex-col gap-5">

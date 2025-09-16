@@ -15,7 +15,6 @@ type Player struct {
 
 func (p *Player) Leave() {
 	p.room.leave(p.id)
-	close(p.newQuestion)
 }
 
 func (p *Player) Answer(option int) {

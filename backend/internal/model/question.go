@@ -1,8 +1,8 @@
 package model
 
 type Question struct {
-	Quesiton string    `json:"question"`
-	Answers  [4]string `json:"answers"`
+	Quesiton string   `json:"question"`
+	Answers  []string `json:"answers"`
 }
 
 type QuestionWithAnswer struct {

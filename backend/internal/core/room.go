@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/crutch-master/upgraded-octo-train/backend/internal/model"
@@ -19,7 +20,7 @@ type Room struct {
 	currAnswers  map[PlayerID]int
 }
 
-func (r *Room) GetId() string {
+func (r *Room) GetID() string {
 	return r.id
 }
 
@@ -62,8 +63,9 @@ func (r *Room) Done() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	for _, p := range r.players {
+	for id, p := range r.players {
 		close(p.newQuestion)
+		delete(r.players, id)
 	}
 }
 
@@ -83,12 +85,19 @@ func (r *Room) GetResults() model.Results {
 	return res
 }
 
-func (r *Room) LoadQuestions(q model.QuestionSet) {
+func (r *Room) LoadQuestions(q model.QuestionSet) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
+	if len(q) == 0 {
+		return errors.New("no questions provided")
+	}
+
 	r.questions = q
 	r.store.delete(r.id)
+	r.notifyPlayers()
+
+	return nil
 }
 
 func (r *Room) Next() (hasNext bool) {
@@ -112,9 +121,7 @@ func (r *Room) Next() (hasNext bool) {
 	r.currQuestion += 1
 
 	if r.currQuestion < len(r.questions) {
-		for _, p := range r.players {
-			p.newQuestion <- r.questions[r.currQuestion].Question
-		}
+		r.notifyPlayers()
 
 		hasNext = true
 	}
@@ -122,11 +129,20 @@ func (r *Room) Next() (hasNext bool) {
 	return
 }
 
+func (r *Room) notifyPlayers() {
+	for _, p := range r.players {
+		p.newQuestion <- r.questions[r.currQuestion].Question
+	}
+}
+
 func (r *Room) leave(id PlayerID) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	delete(r.players, id)
+	if p, ok := r.players[id]; ok {
+		delete(r.players, id)
+		close(p.newQuestion)
+	}
 }
 
 func (r *Room) answer(id PlayerID, option int) {

@@ -38,7 +38,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	room := h.store.Create()
 	defer room.Done()
 
-	if err := conn.WriteJSON(room.GetId()); err != nil {
+	if err := conn.WriteJSON(room.GetID()); err != nil {
 		slog.Error("failed to write room id", "err", err)
 		return
 	}
@@ -47,6 +47,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if err := conn.ReadJSON(&questions); err != nil {
 		slog.Error("failed to read questions", "err", err)
+		return
+	}
+
+	if err := room.LoadQuestions(questions); err != nil {
+		slog.Error("failed to load questions", "err", err)
 		return
 	}
 
