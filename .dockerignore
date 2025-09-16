@@ -1,0 +1,5 @@
+.dockerignore
+frontend/dist/
+frontend/.env.local
+frontend/.gitignore
+frontend/node_modules/

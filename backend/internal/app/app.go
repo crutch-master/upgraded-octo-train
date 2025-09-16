@@ -25,6 +25,7 @@ func Setup() (*App, error) {
 
 	mux.Handle("/ws/host", host.New(store))
 	mux.Handle("/ws/join", join.New(store))
+	mux.Handle("/", http.FileServer(http.Dir("./dist")))
 
 	return &App{
 		server: &http.Server{
