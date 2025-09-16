@@ -1,14 +1,19 @@
 import { Index, Match, Show, Switch } from "solid-js";
-import { createStore, type SetStoreFunction } from "solid-js/store";
+import { createStore } from "solid-js/store";
 import PlayerClient from "./api/player";
 import type { Question } from "./api/types";
 import { Button, Link } from "./components";
+import * as s from "./util/union-store";
 
 type State =
 	| { type: "idle"; nickname: string; roomID: string; error?: string }
 	| { type: "connected"; player: PlayerClient }
 	| { type: "question"; player: PlayerClient; question: Question }
 	| { type: "finished" };
+
+const extract = s.extract<State>();
+
+const extractSet = s.extractSet<State>();
 
 const Join = () => {
 	const [state, setState] = createStore<State>({
@@ -21,12 +26,12 @@ const Join = () => {
 		if (state.type !== "idle") return;
 
 		if (state.roomID.length === 0) {
-			(setState as SetStoreFunction<typeof state>)("error", "Enter room ID");
+			extractSet<"idle">(setState)("error", "Enter room ID");
 			return;
 		}
 
 		if (state.nickname.length === 0) {
-			(setState as SetStoreFunction<typeof state>)("error", "Enter nickname");
+			extractSet<"idle">(setState)("error", "Enter nickname");
 			return;
 		}
 
@@ -39,9 +44,7 @@ const Join = () => {
 				onNewQuestion(question) {
 					setState((state) => ({
 						type: "question",
-						player: (
-							state as Extract<State, { type: "connected" | "question" }>
-						).player,
+						player: extract<"connected" | "question">(state).player,
 						question,
 					}));
 				},
@@ -66,34 +69,24 @@ const Join = () => {
 					<input
 						class="border-2 border-solid rounded-lg text-3xl p-5 w-full"
 						placeholder="Room ID"
-						value={(state as Extract<State, { type: "idle" }>).roomID}
+						value={extract<"idle">(state).roomID}
 						onChange={(event) =>
-							(setState as SetStoreFunction<Extract<State, { type: "idle" }>>)(
-								"roomID",
-								event.target.value,
-							)
+							extractSet<"idle">(setState)("roomID", event.target.value)
 						}
 					/>
 
 					<input
 						class="border-2 border-solid rounded-lg text-3xl p-5 w-full"
 						placeholder="Nickname"
-						value={(state as Extract<State, { type: "idle" }>).nickname}
+						value={extract<"idle">(state).nickname}
 						onChange={(event) =>
-							(setState as SetStoreFunction<Extract<State, { type: "idle" }>>)(
-								"nickname",
-								event.target.value,
-							)
+							extractSet<"idle">(setState)("nickname", event.target.value)
 						}
 					/>
 
-					<Show
-						when={
-							(state as Extract<State, { type: "idle" }>).error !== undefined
-						}
-					>
+					<Show when={extract<"idle">(state).error !== undefined}>
 						<div class="text-3xl text-center text-red-800">
-							{(state as Extract<State, { type: "idle" }>).error}
+							{extract<"idle">(state).error}
 						</div>
 					</Show>
 
@@ -109,14 +102,10 @@ const Join = () => {
 				<Match when={state.type === "question"}>
 					<div class="text-3xl text-center">Current question:</div>
 					<div class="text-3xl text-center mb-10">
-						{(state as Extract<State, { type: "question" }>).question.question}
+						{extract<"question">(state).question.question}
 					</div>
 
-					<Index
-						each={
-							(state as Extract<State, { type: "question" }>).question.answers
-						}
-					>
+					<Index each={extract<"question">(state).question.answers}>
 						{(item, index) => (
 							<Button onClick={answer(index)} class="text-3xl">
 								{item()}

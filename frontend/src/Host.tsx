@@ -1,34 +1,36 @@
-import { createEffect, createSignal, For, Match, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
 import { createStore } from "solid-js/store";
+import * as z from "zod";
 import HostClient from "./api/host";
 import type { Player, Question, QuestionWithAns } from "./api/types";
 import { Button, Link } from "./components";
+import * as s from "./util/union-store";
 
-const mockQuestions: QuestionWithAns[] = [
-	{
-		question: "1 + 1",
-		answers: ["1", "2", "3", "4"],
-		correct: 1,
-	},
-	{
-		question: "2 + 2",
-		answers: ["1", "4", "5", "1984"],
-		correct: 1,
-	},
-];
+const QuestionsSchema = z.array(
+	z.object({
+		question: z.string(),
+		answers: z.array(z.string()),
+		correct: z.number(),
+	}),
+);
 
 type State =
 	| { type: "connecting" }
-	| { type: "connected"; roomID: string }
+	| { type: "connected"; roomID: string; error?: string }
 	| { type: "question"; question: Question }
 	| { type: "results"; results: Player[] }
 	| { type: "disconnected" };
+
+const extract = s.extract<State>();
+const extractSet = s.extractSet<State>();
 
 const Host = () => {
 	const [state, setState] = createStore<State>({ type: "connecting" });
 
 	const [counter, setCounter] = createSignal<number | undefined>(undefined);
 	let interval: number | undefined;
+
+	let loadedQuestions: QuestionWithAns[] = [];
 
 	const host = new HostClient({
 		onConnect(roomID) {
@@ -39,7 +41,7 @@ const Host = () => {
 			setState({ type: "question", question });
 
 			clearInterval(interval);
-			setCounter(30);
+			setCounter(10);
 
 			interval = setInterval(() => {
 				setCounter((c) => (c as number) - 1);
@@ -77,11 +79,48 @@ const Host = () => {
 
 				<Match when={state.type === "connected"}>
 					<div class="text-3xl text-center">
-						Your room ID:{" "}
-						{(state as Extract<State, { type: "connected" }>).roomID}
+						Your room ID: {extract<"connected">(state).roomID}
 					</div>
+
+					<input
+						class="border-2 border-solid border-black rounded-lg text-3xl hover:bg-gray-200 active:bg-gray-400 p-5"
+						type="file"
+						accept=".json"
+						oninput={async (evt) => {
+							try {
+								const json = await (evt.target.files ?? [])[0].text();
+								const parsed = JSON.parse(json);
+
+								loadedQuestions = QuestionsSchema.parse(parsed);
+								extractSet<"connected">(setState)("error", undefined);
+							} catch {
+								extractSet<"connected">(setState)(
+									"error",
+									"Unable to parse questions",
+								);
+							}
+						}}
+					/>
+
+					<Show when={extract<"connected">(state).error !== undefined}>
+						<div class="text-3xl text-center text-red-800">
+							{extract<"connected">(state).error}
+						</div>
+					</Show>
+
 					<Button
-						onClick={() => host.loadQuestions(mockQuestions)}
+						onClick={() => {
+							if (loadedQuestions.length === 0) {
+								extractSet<"connected">(setState)(
+									"error",
+									"No questions loaded",
+								);
+
+								return;
+							}
+
+							host.loadQuestions(loadedQuestions);
+						}}
 						class="text-3xl w-full"
 					>
 						Start
@@ -91,14 +130,10 @@ const Host = () => {
 				<Match when={state.type === "question"}>
 					<div class="text-3xl text-center">Current question:</div>
 					<div class="text-3xl text-center mb-10">
-						{(state as Extract<State, { type: "question" }>).question.question}
+						{extract<"question">(state).question.question}
 					</div>
 
-					<For
-						each={
-							(state as Extract<State, { type: "question" }>).question.answers
-						}
-					>
+					<For each={extract<"question">(state).question.answers}>
 						{(item, index) => (
 							<div class="border-2 rounded-lg p-5 text-3xl">
 								{index() + 1}. {item}
@@ -120,7 +155,7 @@ const Host = () => {
 						Game finished. <br /> Here are the results:
 					</div>
 
-					<For each={(state as Extract<State, { type: "results" }>).results}>
+					<For each={extract<"results">(state).results}>
 						{(item, index) => (
 							<div class="text-3xl flex flex-row justify-between">
 								<div>

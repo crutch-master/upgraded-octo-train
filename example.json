@@ -1,0 +1,20 @@
+[
+  {
+    "question": "Is Taiwan a part of China?",
+    "answers": [
+      "Yes",
+      "No (wrong answer)"
+    ],
+    "correct": 0
+  },
+  {
+    "question": "2 + 2 ?",
+    "answers": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "correct": 3
+  }
+]
